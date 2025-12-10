@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: fastapiuser
+      POSTGRES_PASSWORD: mypass
+      POSTGRES_DB: fastapidb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fastapiuser -d fastapidb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  fastapi:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=fastapiuser
+      - POSTGRES_PASSWORD=mypass
+      - POSTGRES_DB=fastapidb
+    volumes:
+      - .:/app
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    
+volumes:
+  postgres_data:
