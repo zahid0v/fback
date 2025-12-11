@@ -141,7 +141,55 @@ class OpenpackService:
                 status_code=500,
                 detail=f"Failed to create session: {str(e)}"
             )
+    
+    async def _get_Site_info(
+        self,
+        site_user: SiteUser,  # must have .user_id (UUID) and .site_id (UUID)
+        jwt_token: str,  # JWT token for authorization
+        siteId: str
+    ) -> dict:
+        print("recieved token: ", jwt_token)
+        headers = {
+            "Content-Type": "application/json",
+            "X-Authorization": f"Bearer {jwt_token}"
+        }
+        print("req link", "https://factory360core.iv.navvis.com/api/sites/"+siteId)
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url="https://factory360core.iv.navvis.com/api/sites/"+siteId,
+                    headers=headers,
+                    timeout=10.0
+                )
+                response.raise_for_status()
 
+            # Parse response
+            content_type = response.headers.get("content-type", "").lower()
+            response_data = {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "json": response.json() if "application/json" in content_type else None,
+                "text": response.text if "application/json" not in content_type else None
+            }
+
+            return response_data
+
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"External auth failed: {e.response.text[:200]}"
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Network error contacting auth API: {str(e)}"
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create session: {str(e)}"
+            )
     async def _get_SitePois(
         self,
         site_id: str,
@@ -226,7 +274,7 @@ class OpenpackService:
 
         return  {"access_token": access_token, "refresh_token": refresh_token}
     
-    async def get_SiteInfo(self) -> dict | None:
+    async def get_SiteInfo(self, siteId) -> dict | None:
         user = await self._get_user()
         site_user = SiteUser(
             site_id="1a2cfa81-9677-4b3f-9395-338ab0e9aef0",
@@ -238,10 +286,10 @@ class OpenpackService:
         )
         token = await self.get_token()
         print("🔧 [DEBUG] token: ", token)
-        Sites = await self._get_Site(site_user=site_user, jwt_token=token.get("token"))
+        Sites = await self._get_Site_info(site_user=site_user, jwt_token=token.get("access_token"), siteId=siteId)
 
         print("🔧 [DEBUG] sites: ", Sites)
-        return  Site
+        return  Sites
     
     async def get_SitePois(self, siteId) -> dict | None:
         user = await self._get_user()

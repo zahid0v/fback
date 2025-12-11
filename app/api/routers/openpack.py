@@ -24,8 +24,8 @@ async def get_token(request: Request, service: OpenpackServiceDep, token: str = 
     return await service.get_token()
 
 @router.get("/siteInfo/")
-async def get_SiteInfo(request: Request, service: OpenpackServiceDep, token: str = Depends(verify_token_openpack)):
-    return await service.get_SiteInfo()
+async def get_SiteInfo(request: Request, siteId: str, service: OpenpackServiceDep, token: str = Depends(verify_token_openpack)):
+    return await service.get_SiteInfo(siteId)
 
 @router.get("/sitePois/")
 async def get_SitePois(request: Request, siteId: str, service: OpenpackServiceDep, token: str = Depends(verify_token_openpack)):
